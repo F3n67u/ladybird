@@ -795,6 +795,10 @@ public:
     GC::Ptr<HTML::Storage> local_storage_holder() { return m_local_storage_holder; }
     void set_local_storage_holder(GC::Ptr<HTML::Storage> storage) { m_local_storage_holder = storage; }
 
+    Vector<GC::Ref<HTML::HTMLDialogElement>> const& open_dialogs() const { return m_open_dialogs; }
+    void add_to_open_dialogs_list(GC::Ref<HTML::HTMLDialogElement> dialog);
+    void remove_from_open_dialogs_list(HTML::HTMLDialogElement& dialog);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1128,6 +1132,10 @@ private:
     // https://html.spec.whatwg.org/multipage/webstorage.html#local-storage-holder
     // A Document object has an associated local storage holder, which is null or a Storage object. It is initially null.
     GC::Ptr<HTML::Storage> m_local_storage_holder;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#open-dialogs-list
+    // Each Document has an open dialogs list, which is a list of dialog elements, initially empty.
+    Vector<GC::Ref<HTML::HTMLDialogElement>> m_open_dialogs;
 };
 
 template<>

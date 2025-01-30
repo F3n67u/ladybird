@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/CloseWatcher.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
@@ -130,10 +131,18 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     // 6. Add an open attribute to this, whose value is the empty string.
     TRY(set_attribute(AttributeNames::open, {}));
 
-    // FIXME: 7. Assert: this's node document's open dialogs list does not contain this.
-    // FIXME: 8. Add this to this's node document's open dialogs list.
-    // FIXME: 9. Set the dialog close watcher with this.
-    // FIXME: 10. Set this's previously focused element to the focused element.
+    // 7. Assert: this's node document's open dialogs list does not contain this.
+    VERIFY(!document().open_dialogs().contains_slow(GC::Ref { *this }));
+
+    // 8. Add this to this's node document's open dialogs list.
+    document().add_to_open_dialogs_list(*this);
+
+    // 9. Set the dialog close watcher with this.
+    set_close_watcher();
+
+    // 10. Set this's previously focused element to the focused element.
+    m_previously_focused_element = document().focused_element();
+
     // FIXME: 11. Let document be this's node document.
     // FIXME: 12. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover list, null, and false.
     // FIXME: 13. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given this, document's showing auto popover list, null, and false.
@@ -202,8 +211,12 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     // 12. Set is modal of this to true.
     m_is_modal = true;
 
-    // FIXME: 13. Assert: this's node document's open dialogs list does not contain this.
-    // FIXME: 14. Add this to this's node document's open dialogs list.
+    // 13. Assert: this's node document's open dialogs list does not contain this.
+    VERIFY(!document().open_dialogs().contains_slow(GC::Ref { *this }));
+
+    // 14. Add this to this's node document's open dialogs list.
+    document().add_to_open_dialogs_list(*this);
+
     // FIXME: 15. Let this's node document be blocked by the modal dialog this.
 
     // 16. If this's node document's top layer does not already contain this, then add an element to the top layer given this.
@@ -213,7 +226,8 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     // 17. Set the dialog close watcher with this.
     set_close_watcher();
 
-    // FIXME: 18. Set this's previously focused element to the focused element.
+    // 18. Set this's previously focused element to the focused element.
+    m_previously_focused_element = document().focused_element();
 
     // FIXME: 19. Let document be this's node document.
     // FIXME: 20. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover list, null, and false.
@@ -275,12 +289,14 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
     if (m_is_modal)
         document().request_an_element_to_be_remove_from_the_top_layer(*this);
 
-    // FIXME: 7. Let wasModal be the value of subject's is modal flag.
+    // 7. Let wasModal be the value of subject's is modal flag.
+    auto was_modal = m_is_modal;
 
     // 8. Set the is modal flag of subject to false.
     m_is_modal = false;
 
-    // FIXME: 9. Remove subject from subject's node document's open dialogs list.
+    // 9. Remove subject from subject's node document's open dialogs list.
+    document().remove_from_open_dialogs_list(*this);
 
     // 10. If result is not null, then set the returnValue attribute to result.
     if (result.has_value())
@@ -288,11 +304,21 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
 
     // FIXME: 11. Set the request close return value to null.
 
-    // FIXME: 12. If subject's previously focused element is not null, then:
-    //           1. Let element be subject's previously focused element.
-    //           2. Set subject's previously focused element to null.
-    //           3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element,
-    //              or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
+    // 12. If subject's previously focused element is not null, then:
+    if (m_previously_focused_element) {
+        // 1. Let element be subject's previously focused element.
+        auto element = m_previously_focused_element;
+
+        // 2. Set subject's previously focused element to null.
+        m_previously_focused_element = nullptr;
+
+        // 3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element,
+        //    or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
+        auto* focused_element = document().focused_element();
+        auto is_focus_in_dialog = focused_element && focused_element->is_shadow_including_inclusive_descendant_of(*this);
+        if (is_focus_in_dialog || was_modal)
+            run_focusing_steps(element);
+    }
 
     // 13. Queue an element task on the user interaction task source given the subject element to fire an event named close at subject.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
