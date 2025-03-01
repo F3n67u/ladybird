@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/SourceTextModule.h>
+#include <LibJS/SyntheticModule.h>
 #include <LibWeb/HTML/Scripting/Script.h>
 
 namespace Web::HTML {
@@ -19,7 +20,7 @@ public:
     virtual ~ModuleScript() override;
 
 protected:
-    ModuleScript(URL::URL base_url, ByteString filename, JS::Realm&);
+    ModuleScript(Optional<URL::URL> base_url, ByteString filename, JS::Realm&);
 };
 
 class JavaScriptModuleScript final : public ModuleScript {
@@ -53,6 +54,27 @@ private:
     size_t m_completed_fetch_internal_request_count { 0 };
 
     Function<void(JavaScriptModuleScript const*)> m_completed_fetch_internal_callback;
+};
+
+class JSONModuleScript final : public ModuleScript {
+    GC_CELL(JSONModuleScript, ModuleScript);
+    GC_DECLARE_ALLOCATOR(JSONModuleScript);
+
+public:
+    virtual ~JSONModuleScript() override;
+
+    static WebIDL::ExceptionOr<GC::Ptr<JSONModuleScript>> create(ByteString const& filename, StringView source, JS::Realm&);
+
+    JS::Module const* record() const { return m_record.ptr(); }
+    JS::Module* record() { return m_record.ptr(); }
+
+protected:
+    JSONModuleScript(ByteString filename, JS::Realm&);
+
+private:
+    virtual void visit_edges(JS::Cell::Visitor&) override;
+
+    GC::Ptr<JS::Module> m_record;
 };
 
 }

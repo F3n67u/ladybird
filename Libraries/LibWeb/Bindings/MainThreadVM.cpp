@@ -331,8 +331,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             } else if (is<HTML::ModuleScript>(script)) {
                 if (is<HTML::JavaScriptModuleScript>(script)) {
                     script_execution_context->script_or_module = GC::Ref<JS::Module>(*as<HTML::JavaScriptModuleScript>(script)->record());
+                } else if (is<HTML::JSONModuleScript>(script)) {
+                    script_execution_context->script_or_module = GC::Ref<JS::Module>(*as<HTML::JSONModuleScript>(script)->record());
                 } else {
-                    // NOTE: Handle CSS and JSON module scripts once we have those.
+                    // NOTE: Handle CSS module scripts once we have it.
                     VERIFY_NOT_REACHED();
                 }
             } else {

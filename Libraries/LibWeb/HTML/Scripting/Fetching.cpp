@@ -830,7 +830,7 @@ void fetch_single_module_script(JS::Realm& realm,
         auto mime_type = response->header_list()->extract_mime_type();
 
         // 4. Let moduleScript be null.
-        GC::Ptr<JavaScriptModuleScript> module_script;
+        GC::Ptr<ModuleScript> module_script;
 
         // FIXME: 5. Let referrerPolicy be the result of parsing the `Referrer-Policy` header given response. [REFERRERPOLICY]
         // FIXME: 6. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
@@ -842,6 +842,8 @@ void fetch_single_module_script(JS::Realm& realm,
 
         // FIXME: 8. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to the result of creating a CSS module script given sourceText and settingsObject.
         // FIXME: 9. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of creating a JSON module script given sourceText and settingsObject.
+        if (mime_type->is_json() && module_type == "json")
+            module_script = JSONModuleScript::create(url.basename(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
 
         // 10. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
         module_map.set(url, module_type, { ModuleMap::EntryType::ModuleScript, module_script });
