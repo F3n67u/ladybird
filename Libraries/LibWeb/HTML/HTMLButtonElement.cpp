@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/CommandEvent.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -124,9 +125,12 @@ bool HTMLButtonElement::is_submit_button() const
 {
     // A button element is said to be a submit button if any of the following are true:
     switch (type_state()) {
-        // - the type attribute is in the Auto state and both the command and commandfor content attributes are not present; or
+        // - the type attribute is in the Auto state, both the command and commandfor content attributes are not present,
+        //   and the parent node is not a select element; or
     case TypeAttributeState::Auto:
-        return !has_attribute(AttributeNames::command) && !has_attribute(AttributeNames::commandfor);
+        return !has_attribute(AttributeNames::command)
+            && !has_attribute(AttributeNames::commandfor)
+            && !is<HTMLSelectElement>(*parent_element());
         // - the type attribute is in the Submit Button state.
     case TypeAttributeState::Submit:
         return true;
