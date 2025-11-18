@@ -41,8 +41,8 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    GC::Ptr<HTMLSelectElement> owner_select_element();
-    GC::Ptr<HTMLSelectElement const> owner_select_element() const { return const_cast<HTMLOptionElement&>(*this).owner_select_element(); }
+    GC::Ptr<HTMLSelectElement> nearest_select_element() { return m_cached_nearest_select_element; }
+    GC::Ptr<HTMLSelectElement const> nearest_select_element() const { return m_cached_nearest_select_element; }
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:clone-an-option-into-a-selectedcontent
     WebIDL::ExceptionOr<void> maybe_clone_into_selectedcontent();
@@ -66,6 +66,9 @@ private:
     void ask_for_a_reset();
     void update_selection_label();
 
+    void update_nearest_select_element();
+    GC::Ptr<HTMLSelectElement> compute_nearest_select_element();
+
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-selectedness
     bool m_selected { false };
 
@@ -73,6 +76,9 @@ private:
     bool m_dirty { false };
 
     u64 m_selectedness_update_index { 0 };
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#cached-nearest-ancestor-select-element
+    GC::Ptr<HTMLSelectElement> m_cached_nearest_select_element;
 };
 
 }
