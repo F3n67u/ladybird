@@ -44,6 +44,11 @@ public:
     GC::Ptr<HTMLSelectElement> owner_select_element();
     GC::Ptr<HTMLSelectElement const> owner_select_element() const { return const_cast<HTMLOptionElement&>(*this).owner_select_element(); }
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:clone-an-option-into-a-selectedcontent
+    WebIDL::ExceptionOr<void> maybe_clone_into_selectedcontent();
+    // https://html.spec.whatwg.org/multipage/form-elements.html#clone-an-option-into-a-selectedcontent
+    WebIDL::ExceptionOr<void> clone_into_selectedcontent(GC::Ref<HTMLSelectedContentElement>);
+
 private:
     friend class Bindings::OptionConstructor;
     friend class HTMLSelectElement;
