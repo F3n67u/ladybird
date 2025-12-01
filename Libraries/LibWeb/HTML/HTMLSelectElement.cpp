@@ -288,8 +288,8 @@ void HTMLSelectElement::reset_algorithm()
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-selectedindex
 WebIDL::Long HTMLSelectElement::selected_index() const
 {
-    // The selectedIndex IDL attribute, on getting, must return the index of the first option element in the list of options
-    // in tree order that has its selectedness set to true, if any. If there isn't one, then it must return −1.
+    // The selectedIndex getter steps are to return the index of the first option element in this's list of options
+    // in tree order that has its selectedness set to true, if any. If there isn't one, then return −1.
     update_cached_list_of_options();
 
     WebIDL::Long index = 0;
@@ -301,23 +301,38 @@ WebIDL::Long HTMLSelectElement::selected_index() const
     return -1;
 }
 
-void HTMLSelectElement::set_selected_index(WebIDL::Long index)
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-selectedindex
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_selected_index(WebIDL::Long index)
 {
+    // The selectedIndex setter steps are:
+
+    // 1. Let firstMatchingOption be null.
+    GC::Ptr<HTMLOptionElement> first_matching_option;
+
+    // 2. For each option of this's list of options:
     update_cached_list_of_options();
-    // On setting, the selectedIndex attribute must set the selectedness of all the option elements in the list of options to false,
-    // and then the option element in the list of options whose index is the given new value,
-    // if any, must have its selectedness set to true and its dirtiness set to true.
-    for (auto& option : m_cached_list_of_options)
+    WebIDL::Long current_index = 0;
+    for (auto& option : m_cached_list_of_options) {
+        // 1. Set option's selectedness to false.
         option->set_selected_internal(false);
 
-    ScopeGuard guard { [&]() { update_inner_text_element(); } };
+        // 2. If firstMatchingOption is null and option's index is equal to the given value, then
+        //    set firstMatchingOption to option.
+        if (!first_matching_option && current_index == index)
+            first_matching_option = option;
+    }
 
-    if (index < 0 || static_cast<size_t>(index) >= m_cached_list_of_options.size())
-        return;
+    // 3. If firstMatchingOption is not null, then set firstMatchingOption's selectedness to true
+    //    and set firstMatchingOption's dirtiness to true.
+    if (first_matching_option) {
+        first_matching_option->set_selected_internal(true);
+        first_matching_option->m_dirty = true;
+    }
 
-    auto& selected_option = m_cached_list_of_options[index];
-    selected_option->set_selected_internal(true);
-    selected_option->m_dirty = true;
+    // 4. Run update a select's selectedcontent given this.
+    TRY(update_selectedcontent());
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
@@ -698,37 +713,36 @@ void HTMLSelectElement::update_inner_text_element()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
+// https://whatpr.org/html/11890/form-elements.html#selectedness-setting-algorithm
 void HTMLSelectElement::update_selectedness()
 {
-    if (has_attribute(AttributeNames::multiple))
-        return;
-
+    // The selectedness setting algorithm, given a select element element, is to run the following steps:
     update_cached_list_of_options();
 
-    // If element's multiple attribute is absent, and element's display size is 1,
-    if (display_size() == 1) {
-        // and no option elements in the element's list of options have their selectedness set to true,
-        if (m_cached_number_of_selected_options == 0) {
-            // then set the selectedness of the first option element in the list of options in tree order
-            // that is not disabled, if any, to true, and return.
-            for (auto const& option_element : m_cached_list_of_options) {
-                if (!option_element->disabled()) {
-                    option_element->set_selected_internal(true);
-                    update_inner_text_element();
-                    break;
-                }
-            }
-            return;
-        }
-    }
+    // 1. Let updateSelectedcontent be false.
+    auto should_update_selectedcontent = false;
 
-    // If element's multiple attribute is absent,
-    // and two or more option elements in element's list of options have their selectedness set to true,
-    // then set the selectedness of all but the last option element with its selectedness set to true
-    // in the list of options in tree order to false.
-    if (m_cached_number_of_selected_options >= 2) {
-        // then set the selectedness of all but the last option element with its selectedness set to true
-        // in the list of options in tree order to false.
+    // 2. If element 's multiple attribute is absent, and element 's display size is 1,
+    //    and no option elements in the element's list of options have their selectedness set to true, then
+    if (!has_attribute(AttributeNames::multiple) && display_size() == 1 && m_cached_number_of_selected_options == 0) {
+        // 1. Set the selectedness of the first option element in the list of options in tree order
+        //    that is not disabled, if any, to true.
+        for (auto const& option_element : m_cached_list_of_options) {
+            if (!option_element->disabled()) {
+                option_element->set_selected_internal(true);
+                update_inner_text_element();
+                break;
+            }
+        }
+
+        // 2. Set updateSelectedcontent to true.
+        should_update_selectedcontent = true;
+    }
+    // Otherwise, if element's multiple attribute is absent,
+    // and two or more option elements in element's list of options have their selectedness set to true, then:
+    else if (!has_attribute(AttributeNames::multiple) && m_cached_number_of_selected_options >= 2) {
+        // 1. Set the selectedness of all but the last option element with its selectedness set to true
+        //    in the list of options in tree order to false.
         GC::Ptr<HTML::HTMLOptionElement> last_selected_option;
         u64 last_selected_option_update_index = 0;
 
@@ -746,8 +760,14 @@ void HTMLSelectElement::update_selectedness()
             if (option_element != last_selected_option)
                 option_element->set_selected_internal(false);
         }
+
+        // 2. Set updateSelectedcontent to true.
+        should_update_selectedcontent = true;
     }
-    update_inner_text_element();
+
+    // 4. If updateSelectedcontent is true, then run update a select's selectedcontent given element.
+    if (should_update_selectedcontent)
+        MUST(update_selectedcontent());
 }
 
 bool HTMLSelectElement::is_focusable() const

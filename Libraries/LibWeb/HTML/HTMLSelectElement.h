@@ -50,7 +50,7 @@ public:
     GC::Ref<DOM::HTMLCollection> selected_options() const { return const_cast<HTMLSelectElement*>(this)->selected_options(); }
 
     WebIDL::Long selected_index() const;
-    void set_selected_index(WebIDL::Long);
+    WebIDL::ExceptionOr<void> set_selected_index(WebIDL::Long);
 
     virtual Utf16String value() const override;
     WebIDL::ExceptionOr<void> set_value(Utf16String const&);
