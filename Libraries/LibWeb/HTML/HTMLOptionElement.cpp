@@ -41,6 +41,12 @@ void HTMLOptionElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void HTMLOptionElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_cached_nearest_select_element);
+}
+
 // FIXME: This needs to be called any time a descendant's text is modified.
 void HTMLOptionElement::update_selection_label()
 {
