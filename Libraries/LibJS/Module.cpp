@@ -93,38 +93,31 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
 {
     // 1. If result is a normal completion, then
     if (!result.is_error()) {
-        // NOTE: Only Script and CyclicModule referrers have the [[LoadedModules]] internal slot.
-        if (referrer.has<GC::Ref<Script>>() || referrer.has<GC::Ref<CyclicModule>>()) {
-            auto& loaded_modules = referrer.visit(
-                [](GC::Ref<JS::Realm>&) -> Vector<LoadedModuleRequest>& {
-                    VERIFY_NOT_REACHED();
-                    __builtin_unreachable();
-                },
-                [](auto& script_or_module) -> Vector<LoadedModuleRequest>& {
-                    return script_or_module->loaded_modules();
-                });
+        auto& loaded_modules = referrer.visit(
+            [](auto& v) -> Vector<LoadedModuleRequest>& {
+                return v->loaded_modules();
+            });
 
-            bool found_record = false;
+        bool found_record = false;
 
-            // a. If referrer.[[LoadedModules]] contains a LoadedModuleRequest Record record such that ModuleRequestsEqual(record, moduleRequest) is true, then
-            for (auto const& record : loaded_modules) {
-                if (module_requests_equal(record, module_request)) {
-                    // i. Assert: record.[[Module]] and result.[[Value]] are the same Module Record.
-                    VERIFY(record.module == result.value());
-                    found_record = true;
-                }
+        // a. If referrer.[[LoadedModules]] contains a LoadedModuleRequest Record record such that ModuleRequestsEqual(record, moduleRequest) is true, then
+        for (auto const& record : loaded_modules) {
+            if (module_requests_equal(record, module_request)) {
+                // i. Assert: record.[[Module]] and result.[[Value]] are the same Module Record.
+                VERIFY(record.module == result.value());
+                found_record = true;
             }
+        }
 
-            // b. Else,
-            if (!found_record) {
-                auto module = result.value();
+        // b. Else,
+        if (!found_record) {
+            auto module = result.value();
 
-                // i. Append the LoadedModuleRequest Record { [[Specifier]]: moduleRequest.[[Specifier]], [[Attributes]]: moduleRequest.[[Attributes]], [[Module]]: result.[[Value]] } to referrer.[[LoadedModules]].
-                loaded_modules.append(LoadedModuleRequest {
-                    .specifier = module_request.module_specifier.to_utf16_string(),
-                    .attributes = module_request.attributes,
-                    .module = GC::Ref<Module>(*module) });
-            }
+            // i. Append the LoadedModuleRequest Record { [[Specifier]]: moduleRequest.[[Specifier]], [[Attributes]]: moduleRequest.[[Attributes]], [[Module]]: result.[[Value]] } to referrer.[[LoadedModules]].
+            loaded_modules.append(LoadedModuleRequest {
+                .specifier = module_request.module_specifier.to_utf16_string(),
+                .attributes = module_request.attributes,
+                .module = GC::Ref<Module>(*module) });
         }
     }
 

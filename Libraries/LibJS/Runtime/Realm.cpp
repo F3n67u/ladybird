@@ -99,6 +99,8 @@ void Realm::visit_edges(Visitor& visitor)
     visitor.visit(m_intrinsics);
     visitor.visit(m_global_object);
     visitor.visit(m_global_environment);
+    for (auto const& loaded_module : m_loaded_modules)
+        visitor.visit(loaded_module.module);
     if (m_host_defined)
         m_host_defined->visit_edges(visitor);
 }
